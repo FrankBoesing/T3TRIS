@@ -1,6 +1,6 @@
 
 #define WITHSOUND 1
-#define FRANKTFT 0
+#define FRANKTFT 1
 
 #include <SPI.h>
 
@@ -261,17 +261,15 @@ bool game(bool demoMode) {
           case 's' : //down
             t = 0;
             break;
-          case '+' : { //rotate
-            int tmp = aRotation +1;
-            if (tmp > 3) tmp = 0;
-            if (checkMoveBlock(0,0,tmp)) {
-                oldaRotation = aRotation;
-                aRotation = tmp;
-                drawBlockEx(aBlock, aX, aY, aRotation, aColor, aX, aY, oldaRotation);
-                oldaRotation = aRotation;
-             }
-             break;
-             }
+          case '+' :  //rotate
+               if (checkMoveBlock(0,0,1)) {
+                  oldaRotation = aRotation;
+                  aRotation +=1;      
+                  if (aRotation > 3) aRotation = 0;
+                  drawBlockEx(aBlock, aX, aY, aRotation, aColor, aX, aY, oldaRotation);
+                  oldaRotation = aRotation;
+                }
+                break;             
            case 'a' : //right
            case 'd' : //left
               int dX = (ch=='d') ? 1 : -1;
@@ -416,14 +414,15 @@ void checkLines() {
 bool checkMoveBlock(int deltaX, int deltaY, int deltaRotation) {
 
   int rot = aRotation + deltaRotation;
+  if (rot>3) rot = 0;
   int bH = BLOCKHIGHT(aBlock, rot);
   if (deltaY)
-    if (aY + bH + 1 > FIELD_HIGHT)  //lower border
+    if (aY + bH >= FIELD_HIGHT)  //lower border
       return false;
 
   int bW = BLOCKWIDTH(aBlock, rot);  //left border
   if (deltaX > 0) {
-    if (aX + bW + 1 > FIELD_WIDTH)
+    if (aX + bW >= FIELD_WIDTH)
       return false;
   }
   else if (deltaX < 0) {   //right border
