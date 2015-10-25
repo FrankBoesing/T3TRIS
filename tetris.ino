@@ -56,7 +56,9 @@ uint16_t aSpeed, score, highscore;
 int8_t   aBlock, aColor, aX, aY, aRotation;
 
 void setup() {
+#if WITHSOUND
   AudioMemory(10);
+#endif
 
   //If using Teensy-Audioshield, insert lines here for setup!
 
