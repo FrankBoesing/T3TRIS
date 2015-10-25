@@ -1,8 +1,6 @@
 
-#define WITHSOUND 0
-#define FRANKTFT 0
-#define USERTFT 1
-
+#define WITHSOUND 1
+#define FRANKTFT 1
 
 #include <SPI.h>
 
@@ -11,6 +9,8 @@
 #include <Wire.h>
 #include <Audio.h>
 #include <play_sd_aac.h>
+#include <SerialFlash.h>
+#include "tetris_mp3.h"
 #endif
 
 #include <ILI9341_t3.h>
@@ -20,9 +20,6 @@
 #include "font_BlackOpsOne-Regular.h"
 #include "font_DroidSans.h"
 
-#include <SerialFlash.h>
-#include "tetris_mp3.h" //should be tetris_aac.h :-)
-
 #if FRANKTFT
 #define TFT_DC      20
 #define TFT_CS      21
@@ -30,9 +27,8 @@
 #define TFT_MOSI     7
 #define TFT_SCLK    14
 #define TFT_MISO    12
-ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC, TFT_RST, TFT_MOSI, TFT_SCLK, TFT_MISO);
-#endif
-#if USERTFT
+#define TOUCH_CS  	 8
+#else
 //Adjust these !!!:
 #define TFT_DC  9
 #define TFT_CS 10
@@ -40,11 +36,11 @@ ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC, TFT_RST, TFT_MOSI, TFT_SCLK, TFT_MIS
 #define TFT_MOSI    11
 #define TFT_SCLK    13
 #define TFT_MISO    12
-// MOSI=11, MISO=12, SCK=13
-ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC);
+#define TOUCH_CS  8
 #endif
 
-#define TOUCH_CS  8
+ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC, TFT_RST, TFT_MOSI, TFT_SCLK, TFT_MISO);
+
 XPT2046_Touchscreen ts(TOUCH_CS);
 
 // This is calibration data for the raw touch data to the screen coordinates
@@ -70,6 +66,28 @@ uint8_t  field[FIELD_WIDTH][FIELD_HIGHT];
 uint16_t aSpeed, score, highscore;
 int8_t   aBlock, aColor, aX, aY, aRotation;
 
+
+void initGame();
+void initField() ;
+bool checkMoveBlock(int deltaX, int deltaY, int deltaRotation);
+bool game(bool demoMode);
+char controls();
+void setBlock();
+void checkLines();
+void nextBlock();
+void effect1();
+void playSound(bool onoff);
+uint16_t colgamma(int16_t color, int16_t gamma);
+void printColorText(const char * txt, unsigned colorOffset);
+void printGameOver();
+void printNum(unsigned num);
+void printScore();
+void printHighScore();
+void drawBlockPix(int px, int py, int col);
+void drawBlock(int blocknum, int px, int py, int rotation, int col);
+void drawBlockEx(int blocknum, int px, int py, int rotation, int col, int oldx, int oldy, int oldrotation);
+void drawField();
+ 
 void setup() {
 #if WITHSOUND
   AudioMemory(10);
@@ -79,14 +97,12 @@ void setup() {
 
   //color[0] is background, no gamma
   for (unsigned i=1; i < NUMCOLORS; i++) {
-    color_gamma[0][i] = gamma(color[i], 30);
-    color_gamma[1][i] = gamma(color[i], -70);
-    color_gamma[2][i] = gamma(color[i], -35);
+    color_gamma[0][i] = colgamma(color[i], 30);
+    color_gamma[1][i] = colgamma(color[i], -70);
+    color_gamma[2][i] = colgamma(color[i], -35);
   }
-
-  int t = millis();
-  while (!Serial || t-millis()<1000) {;}
-  
+   delay(800);
+   
   Serial.println("--T3TRIS--");
   tft.begin();
   ts.begin();
@@ -243,19 +259,17 @@ bool game(bool demoMode) {
         if (ch != '\0') tk = millis();
         switch (ch) {
           case 's' : //down
-            tk = millis()-100;
-            continue;
-          case '+' : { //rotate
-            int tmp = aRotation +1;
-            if (tmp > 3) tmp = 0;
-            if (checkMoveBlock(0,0,tmp)) {
-                oldaRotation = aRotation;
-                aRotation = tmp;
-                drawBlockEx(aBlock, aX, aY, aRotation, aColor, aX, aY, oldaRotation);
-                oldaRotation = aRotation;
-             }
-             break;
-             }
+            t = 0;
+            break;
+          case '+' :  //rotate
+               if (checkMoveBlock(0,0,1)) {
+                  oldaRotation = aRotation;
+                  aRotation +=1;      
+                  if (aRotation > 3) aRotation = 0;
+                  drawBlockEx(aBlock, aX, aY, aRotation, aColor, aX, aY, oldaRotation);
+                  oldaRotation = aRotation;
+                }
+                break;             
            case 'a' : //right
            case 'd' : //left
               int dX = (ch=='d') ? 1 : -1;
@@ -400,14 +414,15 @@ void checkLines() {
 bool checkMoveBlock(int deltaX, int deltaY, int deltaRotation) {
 
   int rot = aRotation + deltaRotation;
+  if (rot>3) rot = 0;
   int bH = BLOCKHIGHT(aBlock, rot);
   if (deltaY)
-    if (aY + bH + 1 > FIELD_HIGHT)  //lower border
+    if (aY + bH >= FIELD_HIGHT)  //lower border
       return false;
 
   int bW = BLOCKWIDTH(aBlock, rot);  //left border
   if (deltaX > 0) {
-    if (aX + bW + 1 > FIELD_WIDTH)
+    if (aX + bW >= FIELD_WIDTH)
       return false;
   }
   else if (deltaX < 0) {   //right border
@@ -445,7 +460,7 @@ void effect1() {
   } while (millis() - t < 1000);
 }
 
-uint16_t gamma(int16_t color, int16_t gamma){
+uint16_t colgamma(int16_t color, int16_t gamma){
  return  tft.color565(
     constrain(((color>>8) & 0xf8) + gamma,0,255),  //r
     constrain(((color>>3) & 0xfc) + gamma,0,255),  //g
