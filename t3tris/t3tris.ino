@@ -259,8 +259,8 @@ bool game(bool demoMode) {
         if (ch != '\0') tk = millis();
         switch (ch) {
           case 's' : //down
-            tk = millis()-100;
-            continue;
+            t = 0;
+            break;
           case '+' : { //rotate
             int tmp = aRotation +1;
             if (tmp > 3) tmp = 0;
