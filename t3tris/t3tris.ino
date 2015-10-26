@@ -87,7 +87,7 @@ void drawBlockPix(int px, int py, int col);
 void drawBlock(int blocknum, int px, int py, int rotation, int col);
 void drawBlockEx(int blocknum, int px, int py, int rotation, int col, int oldx, int oldy, int oldrotation);
 void drawField();
- 
+
 void setup() {
 #if WITHSOUND
   AudioMemory(10);
@@ -102,7 +102,7 @@ void setup() {
     color_gamma[2][i] = colgamma(color[i], -35);
   }
    delay(800);
-   
+
   Serial.println("--T3TRIS--");
   tft.begin();
   ts.begin();
@@ -133,6 +133,7 @@ void setup() {
   tft.print("Score");
 
   initGame();
+  printHighScore();
 }
 
 void initGame(){
@@ -164,26 +165,26 @@ void printNum(unsigned num) {
   tft.print(num);
 }
 
-void printScore() {  
+void printScore() {
   tft.setFont(DroidSans_10);
   tft.setTextColor(ILI9341_GREEN);
   tft.setCursor(3,116);
 #if WITHSOUND
   AudioNoInterrupts();
-#endif  
+#endif
   tft.fillRect( 3, 116, FIELD_X -3, 10, SCREEN_BG);
   printNum(score);
-#if WITHSOUND  
+#if WITHSOUND
   AudioInterrupts();
-#endif  
+#endif
 }
 
 void printHighScore() {
   tft.setFont(DroidSans_10);
   tft.setTextColor(ILI9341_YELLOW);
-  tft.setCursor(3,228);  
+  tft.setCursor(3,228);
   tft.fillRect( 3, 228, FIELD_X -3, 10, SCREEN_BG);
-  printNum(highscore);  
+  printNum(highscore);
 }
 
 
@@ -205,18 +206,18 @@ void printGameOver() {
 }
 
 void playSound(bool onoff) {
-#if WITHSOUND  
+#if WITHSOUND
   if (!playSnd.isPlaying() && onoff) playSnd.play(tetris_aac,tetris_aac_len);
   else
   if (playSnd.isPlaying() && !onoff) playSnd.stop();
-#endif  
+#endif
 }
 
 void loop(void) {
 bool r = false;
 int c = 0;
 int c1 = 0;
- 
+
  playSound(true);
 
  while(!r) {
@@ -236,7 +237,6 @@ int c1 = 0;
 
 bool game(bool demoMode) {
   bool gameOver = false;
-  uint8_t oldaX, oldaY,oldaRotation;
   int tk = 0;
 
   initGame();
@@ -247,10 +247,6 @@ bool game(bool demoMode) {
     yield();
     if (!demoMode) playSound(true);
 
-    oldaX = aX;
-    oldaY = aY;
-    oldaRotation = aRotation;
-
     int t = millis();
 
     if (!demoMode) do {  // process controls
@@ -259,25 +255,21 @@ bool game(bool demoMode) {
         if (ch != '\0') tk = millis();
         switch (ch) {
           case 's' : //down
-            t = 0;
-            break;
+             t = 0;
+             break;
           case '+' :  //rotate
-               if (checkMoveBlock(0,0,1)) {
-                  oldaRotation = aRotation;
-                  aRotation +=1;      
-                  if (aRotation > 3) aRotation = 0;
+             if (checkMoveBlock(0,0,1)) {
+                  int oldaRotation = aRotation;
+                  aRotation = (aRotation + 1) & 0x03;
                   drawBlockEx(aBlock, aX, aY, aRotation, aColor, aX, aY, oldaRotation);
-                  oldaRotation = aRotation;
-                }
-                break;             
-           case 'a' : //right
-           case 'd' : //left
+              }
+              break;
+           case 'a' : //left
+           case 'd' : //right
               int dX = (ch=='d') ? 1 : -1;
               if (checkMoveBlock(dX,0,0)) {
-                  oldaX = aX;
+                  drawBlockEx(aBlock, aX + dX, aY, aRotation, aColor, aX, aY, aRotation);
                   aX += dX;
-                  drawBlockEx(aBlock, aX, aY, aRotation, aColor, oldaX, aY, aRotation);
-                  oldaX = aX;
               }
               break;
         }
@@ -294,9 +286,9 @@ bool game(bool demoMode) {
     //move the block down
     bool movePossible = checkMoveBlock(0,1,0);
     if ( movePossible ){
-        score += 1;
-        aY++ ;
-        drawBlockEx(aBlock, aX, aY, aRotation, aColor, oldaX, oldaY, oldaRotation);
+        drawBlockEx(aBlock, aX, aY + 1, aRotation, aColor, aX, aY, aRotation);
+        aY++;
+        score++;
     }
 
     else {
@@ -308,7 +300,6 @@ bool game(bool demoMode) {
       score += 10;
       nextBlock();
       drawBlock(aBlock, aX, aY, aRotation, aColor);
-      //immedately check if it can move down
       if (!checkMoveBlock(0,0,0)) {
         //no, game over !
         initField();
@@ -319,17 +310,16 @@ bool game(bool demoMode) {
     printScore();
   } while(!gameOver);
 
-  printScore();
   if (score > highscore) {
       highscore = score;
       printHighScore();
   }
   if (!demoMode) {
-    Serial.println();        
+    Serial.println();
     Serial.print("Score: ");
-    Serial.println(score);        
+    Serial.println(score);
     playSound(false);
-    printGameOver();    
+    printGameOver();
   }
   return false;
 }
@@ -348,11 +338,6 @@ char controls() {
   p.x = map(p.x, TS_MINX, TS_MAXX, 0, 3);
   p.y = map(p.y, TS_MINY, TS_MAXY, 0, 3);
 
-  if ((p.y < 1)  && (p.x > 1)) return ('d');
-  if ((p.y < 1)  && (p.x < 1)) return ('a');
-  if ((p.y >= 2) && (p.x < 1)) return ('s');
-  if ((p.y >= 2) && (p.x > 1)) return ('+');
-
 #if 0
   tft.setFont(DroidSans_10);
   tft.setTextColor(ILI9341_GREEN);
@@ -362,6 +347,11 @@ char controls() {
   tft.setCursor(3,16);
   tft.print(p.y);
 #endif
+
+  if ((p.y < 1)  && (p.x > 1)) return ('d');
+  if ((p.y < 1)  && (p.x < 1)) return ('a');
+  if ((p.y >= 2) && (p.x < 1)) return ('s');
+  if ((p.y >= 2) && (p.x > 1)) return ('+');
 
   return ('\0' );
 }
@@ -381,7 +371,6 @@ void setBlock() {
 }
 
 void checkLines() {
-  //evtl mit ay beginnen ?
   int x,y,c,i;
   for (y=0; y<FIELD_HIGHT; y++) {
     c = 0;
@@ -389,7 +378,7 @@ void checkLines() {
       if (field[x][y] > 0) c++;
     }
 
-    if ( c >= FIELD_WIDTH ) {//complete line ! //FIELD_WIDTH
+    if ( c >= FIELD_WIDTH ) {//complete line !
 
       for (i = NUMCOLORS-1; i >= 0; i--) {
         for (x =0; x < FIELD_WIDTH; x++) {
@@ -406,32 +395,25 @@ void checkLines() {
           field[x][0]=0;
 
       drawField();
-      if (aSpeed>0) aSpeed -= 5;
+      if (aSpeed>SPEED_MAX) aSpeed -= 5;
     }
   }
 }
 
 bool checkMoveBlock(int deltaX, int deltaY, int deltaRotation) {
-
-  int rot = aRotation + deltaRotation;
-  if (rot>3) rot = 0;
+  int rot = (aRotation + deltaRotation) & 0x03;
   int bH = BLOCKHIGHT(aBlock, rot);
-  if (deltaY)
-    if (aY + bH >= FIELD_HIGHT)  //lower border
-      return false;
-
-  int bW = BLOCKWIDTH(aBlock, rot);  //left border
-  if (deltaX > 0) {
-    if (aX + bW >= FIELD_WIDTH)
-      return false;
-  }
-  else if (deltaX < 0) {   //right border
-    if (aX - 1 < 0)
-      return false;
-  }
-
-  int dX = aX + deltaX;
   int dY = aY + deltaY;
+
+  if (dY + bH > FIELD_HIGHT)  //lower border
+      return false;
+
+  int bW = BLOCKWIDTH(aBlock, rot);
+  int dX = aX + deltaX;
+
+  if (dX < 0 || dX + bW > FIELD_WIDTH) { //left/right border
+      return false;
+  }
 
   for (int y=bH-1; y>= 0; y--) {
     for (int x=0; x<bW; x++) {
@@ -450,6 +432,11 @@ void nextBlock() {
   aRotation = random(4);
   aY = 0;
   aX = random(FIELD_WIDTH - BLOCKWIDTH(aBlock, aRotation) + 1);
+
+#if 0 //debug
+  aBlock = 0; // random(NUMBLOCKS);
+  aRotation = 1; // random(4);
+#endif
 }
 
 void effect1() {
@@ -520,7 +507,7 @@ void drawBlock(int blocknum, int px, int py, int rotation, int col) {
     for (x=0; x<w; x++)
        for (y=0; y<h; y++)
          if (block[rotation][blocknum][y*4 + x + 2]>0) dbuf[x + px][y + py] = 1;
-    
+
 #if WITHSOUND
     AudioNoInterrupts();
 #endif
@@ -530,9 +517,9 @@ void drawBlock(int blocknum, int px, int py, int rotation, int col) {
            case 1:  drawBlockPix(FIELD_X+x*PIX, FIELD_Y+y*PIX, col); dbuf[x][y]=0;break;
            case 2:  tft.fillRect(FIELD_X+x*PIX, FIELD_Y+y*PIX, PIX, PIX, color[0]); dbuf[x][y]=0; break;
         }
-#if WITHSOUND        
+#if WITHSOUND
     AudioInterrupts();
-#endif    
+#endif
  }
 
 void drawField() {
