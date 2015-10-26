@@ -79,6 +79,7 @@ void effect1();
 void playSound(bool onoff);
 uint16_t colgamma(int16_t color, int16_t gamma);
 void printColorText(const char * txt, unsigned colorOffset);
+void printStartGame();
 void printGameOver();
 void printNum(unsigned num);
 void printScore();
@@ -187,11 +188,10 @@ void printHighScore() {
   printNum(highscore);
 }
 
-
 void printGameOver() {
   tft.setFont(BlackOpsOne_40);
-  tft.fillRect( FIELD_X , 120, FIELD_XW, 40, SCREEN_BG);
-  tft.fillRect( FIELD_X , 170, FIELD_XW, 40, SCREEN_BG);
+  tft.fillRect( FIELD_X , 120, FIELD_XW, 40, color[0]);
+  tft.fillRect( FIELD_X , 170, FIELD_XW, 40, color[0]);
 
   int t = millis();
   unsigned cofs = 1;
@@ -203,6 +203,24 @@ void printGameOver() {
     if (++cofs > NUMCOLORS-1) cofs = 1;
    delay(30);
   } while (millis()-t < 2000);
+}
+
+void printStartGame() {
+  tft.setFont(BlackOpsOne_72);
+  for (int i=3; i>0; i--) {
+    for (int y=FIELD_Y+20; y<FIELD_HIGHT*PIX-32; y+=72) {
+      tft.setCursor(FIELD_X + FIELD_WIDTH*PIX / 2 - 36, y);
+      tft.setTextColor(color[i+2]);
+      tft.print(i);
+      delay(150);
+      tft.fillRect( FIELD_X + FIELD_WIDTH*PIX / 2 - 36, y, 72, 72, color[0]);
+    }
+  }
+  tft.setTextColor(ILI9341_YELLOW);
+  tft.setCursor( FIELD_X+30, 120);
+  tft.print("GO");
+  delay(400);
+  initField();
 }
 
 void playSound(bool onoff) {
@@ -240,6 +258,8 @@ bool game(bool demoMode) {
   int tk = 0;
 
   initGame();
+  if (!demoMode) printStartGame();
+
   nextBlock();
   drawBlock(aBlock, aX, aY, aRotation, aColor);
 
@@ -379,7 +399,7 @@ void checkLines() {
     }
 
     if ( c >= FIELD_WIDTH ) {//complete line !
-
+      //line-effect:
       for (i = NUMCOLORS-1; i >= 0; i--) {
         for (x =0; x < FIELD_WIDTH; x++) {
           drawBlockPix(FIELD_X + x*PIX,FIELD_Y + y*PIX,i);
