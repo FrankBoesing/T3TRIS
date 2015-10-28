@@ -58,7 +58,7 @@ AudioConnection     patchCord2(playSnd, 1, sndOut, 1);
 #endif
 
 #define SCREEN_BG   ILI9341_NAVY
-#define SPEED_START 300
+#define SPEED_START 500
 #define SPEED_MAX   200
 
 uint16_t color_gamma[3][NUMCOLORS];
@@ -368,10 +368,10 @@ char controls() {
   tft.print(p.y);
 #endif
 
-  if ((p.y < 1)  && (p.x > 1)) return ('d');
-  if ((p.y < 1)  && (p.x < 1)) return ('a');
-  if ((p.y >= 2) && (p.x < 1)) return ('s');
-  if ((p.y >= 2) && (p.x > 1)) return ('+');
+  if ((p.y < 1)  && (p.x > 1)) return ('+');
+  if ((p.y < 1)  && (p.x < 1)) return ('d');
+  if ((p.y >= 2) && (p.x < 1)) return ('a');
+  if ((p.y >= 2) && (p.x > 1)) return ('s');
 
   return ('\0' );
 }
