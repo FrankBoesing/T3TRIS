@@ -69,7 +69,8 @@ AudioConnection     patchCord2(playSnd, 1, sndOut, 1);
 uint16_t color_gamma[3][NUMCOLORS];
 uint8_t  field[FIELD_WIDTH][FIELD_HIGHT];
 uint16_t aSpeed, score, highscore;
-int8_t   aBlock, aColor, aX, aY, aRotation;
+int8_t   nBlock, nColor, nRotation; //next Block
+int8_t   aBlock, aColor, aX, aY, aRotation; //active Block
 
 
 void initGame();
@@ -90,7 +91,9 @@ void printNum(unsigned num);
 void printScore();
 void printHighScore();
 void drawBlockPix(int px, int py, int col);
+void drawBlockPixSmall(int px, int py, int col);
 void drawBlock(int blocknum, int px, int py, int rotation, int col);
+void drawBlockSmall(bool draw);
 void drawBlockEx(int blocknum, int px, int py, int rotation, int col, int oldx, int oldy, int oldrotation);
 void drawField();
 
@@ -135,7 +138,8 @@ void setup() {
   tft.setRotation(2);
 
   highscore = 0;
-
+  nextBlock();
+  
   tft.fillScreen(SCREEN_BG);
   tft.setCursor(10, 10);
   tft.setFont(BlackOpsOne_40);
@@ -151,14 +155,15 @@ void setup() {
   tft.setTextColor(ILI9341_GREEN);
   tft.print("Score");
 
-  tft.setCursor(0,200);
+  tft.setCursor(0,180);
   tft.setFont(DroidSans_10);
   tft.setTextColor(ILI9341_YELLOW);
   tft.print("Hi-");
-  tft.setCursor(0,211);
+  tft.setCursor(0,191);
   tft.print("Score");
 
   initGame();
+  printScore();
   printHighScore();
 }
 
@@ -208,8 +213,8 @@ void printScore() {
 void printHighScore() {
   tft.setFont(DroidSans_10);
   tft.setTextColor(ILI9341_YELLOW);
-  tft.setCursor(3,228);
-  tft.fillRect( 3, 228, FIELD_X -3, 10, SCREEN_BG);
+  tft.setCursor(3,208);
+  tft.fillRect( 3, 208, FIELD_X -3, 10, SCREEN_BG);
   printNum(highscore);
 }
 
@@ -286,6 +291,7 @@ bool game(bool demoMode) {
   if (!demoMode) printStartGame();
 
   nextBlock();
+  drawBlockSmall(true);
   drawBlock(aBlock, aX, aY, aRotation, aColor);
 
   do {
@@ -344,6 +350,7 @@ bool game(bool demoMode) {
       //get new block and draw it
       score += 10;
       nextBlock();
+      drawBlockSmall(true);
       drawBlock(aBlock, aX, aY, aRotation, aColor);
       if (!checkMoveBlock(0,0,0)) {
         //no, game over !
@@ -352,7 +359,10 @@ bool game(bool demoMode) {
       }
     }
 
-    printScore();
+    if (!demoMode) {
+      printScore();
+    }
+    
   } while(!gameOver);
 
   if (!demoMode) {
@@ -366,6 +376,7 @@ bool game(bool demoMode) {
     playSound(false);
     printGameOver();
   }
+  drawBlockSmall(false);
   return false;
 }
 
@@ -476,16 +487,15 @@ bool checkMoveBlock(int deltaX, int deltaY, int deltaRotation) {
 }
 
 void nextBlock() {
-  aColor = random(1,NUMCOLORS);
-  aBlock = random(NUMBLOCKS);
-  aRotation = random(4);
+  aColor = nColor;
+  aBlock = nBlock;
+  aRotation = nRotation;
   aY = 0;
   aX = random(FIELD_WIDTH - BLOCKWIDTH(aBlock, aRotation) + 1);
 
-#if 0 //debug
-  aBlock = 0; // random(NUMBLOCKS);
-  aRotation = 1; // random(4);
-#endif
+  nColor = random(1,NUMCOLORS);
+  nBlock = random(NUMBLOCKS);
+  nRotation = random(4);
 }
 
 void effect1() {
@@ -525,8 +535,21 @@ void drawBlockPix(int px, int py, int col) {
      tft.drawFastVLine(px + i, py + i , PIX-2*i , color_gamma[2][col]);
      tft.drawFastVLine(px + PIX - i - 1, py + i , PIX-2*i , color_gamma[2][col]);
     }
-
  }
+
+inline void drawBlockPixSmall(int px, int py, int col) {
+  
+    const int w=2;
+
+    tft.fillRect(px+w, py+w, PIXSMALL-w*2+1, PIXSMALL-w*2+1, color[col]);
+    for (int i = 0; i<w;i++) {
+     tft.drawFastHLine(px + i, py + i, PIXSMALL-2*i , color_gamma[0][col]);
+     tft.drawFastHLine(px + i, PIXSMALL + py - i - 1 , PIXSMALL-2*i , color_gamma[1][col]);
+     tft.drawFastVLine(px + i, py + i , PIXSMALL-2*i , color_gamma[2][col]);
+     tft.drawFastVLine(px + PIXSMALL - i - 1, py + i , PIXSMALL-2*i , color_gamma[2][col]);
+    }
+ }
+
 
 void drawBlock(int blocknum, int px, int py, int rotation, int col) {
     int w = BLOCKWIDTH(blocknum, rotation);
@@ -538,6 +561,23 @@ void drawBlock(int blocknum, int px, int py, int rotation, int col) {
             drawBlockPix(FIELD_X+px*PIX+x*PIX, FIELD_Y+py*PIX+y*PIX, col);
          }
      }
+ }
+
+void drawBlockSmall(bool draw) {
+    const int px = 3;
+    const int py = 260;
+    
+    
+    tft.fillRect(px, py, PIXSMALL * 4, PIXSMALL * 4, SCREEN_BG);
+    
+    if (draw) {
+      for (int x=0; x<4; x++) {
+        for (int y=0; y<4; y++) {
+         if (block[nRotation][nBlock][y*4 + x + 2])
+            drawBlockPixSmall(px+x*PIXSMALL, py+y*PIXSMALL, nColor);
+        }
+      }
+    }
  }
 
  static uint8_t dbuf[FIELD_WIDTH][FIELD_HIGHT] ={0};
