@@ -1,5 +1,6 @@
 
 #define WITHSOUND 1
+#define AUDIOSHIELD 1
 #define FRANKTFT 1
 
 #include <SPI.h>
@@ -23,20 +24,19 @@
 #if FRANKTFT
 #define TFT_DC      20
 #define TFT_CS      21
-#define TFT_RST    255  // 255 = unused, connect to 3.3V
+#define TFT_RST     32  // 255 = unused, connect to 3.3V
 #define TFT_MOSI     7
 #define TFT_SCLK    14
 #define TFT_MISO    12
-#define TOUCH_CS  	 8
-#else
-//Adjust these !!!:
-#define TFT_DC  9
-#define TFT_CS 10
+#define TOUCH_CS  	16
+#else//Adjust these !!!:
+#define TFT_DC       9
+#define TFT_CS      10
 #define TFT_RST    255  // 255 = unused, connect to 3.3V
 #define TFT_MOSI    11
 #define TFT_SCLK    13
 #define TFT_MISO    12
-#define TOUCH_CS  8
+#define TOUCH_CS     8
 #endif
 
 ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC, TFT_RST, TFT_MOSI, TFT_SCLK, TFT_MISO);
@@ -51,8 +51,13 @@ XPT2046_Touchscreen ts(TOUCH_CS);
 
 //Adjust sound-output !!!
 #if WITHSOUND
-AudioPlaySdAac      playSnd;       //xy=154,78
-AudioOutputPWM      sndOut;           //xy=334,89
+AudioPlaySdAac      playSnd;
+#if AUDIOSHIELD 
+AudioOutputI2S      sndOut;  
+AudioControlSGTL5000 audioShield;
+#else 
+AudioOutputPWM      sndOut;
+#endif
 AudioConnection     patchCord1(playSnd, 0, sndOut, 0);
 AudioConnection     patchCord2(playSnd, 1, sndOut, 1);
 #endif
@@ -90,11 +95,31 @@ void drawBlockEx(int blocknum, int px, int py, int rotation, int col, int oldx, 
 void drawField();
 
 void setup() {
-#if WITHSOUND
-  AudioMemory(10);
+#if AUDIOSHIELD
+  //CS Flash-Chip
+  pinMode(6, OUTPUT);
+  digitalWrite(6, HIGH);
+  //CS SD-Karte
+  pinMode(10, OUTPUT);
+  digitalWrite(10, HIGH);
+#endif
+#if FRANKTFT
+  //CS0-CS2 Memoryboard
+  pinMode(2, OUTPUT);
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  digitalWrite(2, LOW);
+  digitalWrite(3, LOW);
+  digitalWrite(4, LOW);
 #endif
 
-  //If using Teensy-Audioshield, insert lines here for setup!
+#if WITHSOUND
+  AudioMemory(10);
+#if AUDIOSHIELD
+  audioShield.enable();
+  audioShield.volume(0.5);
+#endif
+#endif
 
   //color[0] is background, no gamma
   for (unsigned i=1; i < NUMCOLORS; i++) {
@@ -102,7 +127,7 @@ void setup() {
     color_gamma[1][i] = colgamma(color[i], -70);
     color_gamma[2][i] = colgamma(color[i], -35);
   }
-   delay(800);
+  delay(800);
 
   Serial.println("--T3TRIS--");
   tft.begin();
@@ -351,12 +376,6 @@ char controls() {
   if ( ts.bufferEmpty() ) return ('\0');
 
   TS_Point p = ts.getPoint();
-  if (p.z < 400) return ('\0');
-
-  p.y = TS_MAXY - p.y;
-  p.x = TS_MAXX - p.x;
-  p.x = map(p.x, TS_MINX, TS_MAXX, 0, 3);
-  p.y = map(p.y, TS_MINY, TS_MAXY, 0, 3);
 
 #if 0
   tft.setFont(DroidSans_10);
@@ -366,7 +385,17 @@ char controls() {
   tft.print(p.x);
   tft.setCursor(3,16);
   tft.print(p.y);
+  tft.setCursor(3,26);
+  tft.print(p.z);  
 #endif
+
+  if (p.z < 400) return ('\0');
+
+  p.y = TS_MAXY - p.y;
+  p.x = TS_MAXX - p.x;
+  p.x = map(p.x, TS_MINX, TS_MAXX, 0, 3);
+  p.y = map(p.y, TS_MINY, TS_MAXY, 0, 3);
+
 
   if ((p.y < 1)  && (p.x > 1)) return ('+');
   if ((p.y < 1)  && (p.x < 1)) return ('d');
