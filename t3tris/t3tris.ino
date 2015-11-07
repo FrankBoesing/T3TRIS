@@ -355,11 +355,11 @@ bool game(bool demoMode) {
     printScore();
   } while(!gameOver);
 
-  if (score > highscore) {
-      highscore = score;
-      printHighScore();
-  }
   if (!demoMode) {
+    if (score > highscore) {
+        highscore = score;
+        printHighScore();
+    }
     Serial.println();
     Serial.print("Score: ");
     Serial.println(score);
