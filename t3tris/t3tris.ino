@@ -190,8 +190,8 @@ void printHighScore() {
 
 void printGameOver() {
   tft.setFont(BlackOpsOne_40);
-  tft.fillRect( FIELD_X , 120, FIELD_XW, 40, color[0]);
-  tft.fillRect( FIELD_X , 170, FIELD_XW, 40, color[0]);
+  tft.fillRect( FIELD_X , 120, FIELD_WIDTH*PIX, 40, color[0]);
+  tft.fillRect( FIELD_X , 170, FIELD_WIDTH*PIX, 40, color[0]);
 
   int t = millis();
   unsigned cofs = 1;
